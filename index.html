@@ -21,7 +21,7 @@
             id="fullname"
             name="fullname"
             type="text"
-            placeholder="VD: Duy Nguyễn"
+            placeholder="EX: Duy Nguyễn"
             class="form-control"
           />
           <span class="form-message"></span>
@@ -33,7 +33,7 @@
             id="email"
             name="email"
             type="text"
-            placeholder="VD: email@domain.com"
+            placeholder="EX: email@domain.com"
             class="form-control"
           />
           <span class="form-message"></span>
@@ -68,5 +68,13 @@
         <button class="form-submit">Register</button>
       </form>
     </div>
+    <script src="main.js"></script>
+    <!-- <script>
+      //output
+      Validator({
+        form: "#form1",
+        rules: [Validator.isRequired("#fullname"), Validator.isEmail("#email")],
+      });
+    </script> -->
   </body>
 </html>
