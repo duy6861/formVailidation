@@ -1,62 +1,118 @@
 function Validator(options) {
+    function getParent(element, selector) {
+        while (element.parentElement) {
+            if (element.parentElement.matches(selector)) {
+                return element.parentElement
+            }
+            element = element.parentElement;
+        }
+    }
+    var selectorRules = {}
     //perform validation
     function validate(inputElement, rule) {
-        var errorElement = inputElement.parentElement.querySelector(options.errorSelector);
-        var errorMessage = rule.test(inputElement.value);
+        var errorElement = inputElement.closest(options.formGroupSelector).querySelector(options.errorSelector);
+        var errorMessage
+        //lấy các rule của selector
+        var rules = selectorRules[rule.selector]
+        //lặp qua các rule
+        for (var i = 0; i < rules.length; i++) {
+            errorMessage = rules[i](inputElement.value)
+            if (errorMessage) break;
+        }
         if (errorMessage) {
             errorElement.innerText = errorMessage
-            inputElement.parentElement.classList.add('invalid')
+            getParent(inputElement, options.formGroupSelector).classList.add('invalid')
         }
         else {
             errorElement.innerText = '';
-            inputElement.parentElement.classList.remove('invalid')
+            getParent(inputElement, options.formGroupSelector).classList.remove('invalid')
         }
+        return !errorMessage
     }
     // get element in form validate
     var formElement = document.querySelector(options.form);
-    console.log(formElement)
     if (formElement) {
+        formElement.onsubmit = (e) => {
+            e.preventDefault()
+            var isFormValid = true;
+            //lap qua tung rule va validate
+            options.rules.forEach(rule => {
+                var inputElement = document.querySelector(rule.selector);
+                var isValid = validate(inputElement, rule)
+                if (!isValid) {
+                    isFormValid = false;
+                }
+            });
+            if (isFormValid) {
+                if (typeof options.onSubmit === 'function') {
+                    var enableInput = formElement.querySelectorAll('[name]:not([disabled])')
+                    console.log(enableInput)
+                    console.log(Array.from(enableInput))
+                    var formValue = Array.from(enableInput).reduce(function (values, input) {
+                        values[input.name] = input.value
+                        return values
+                    }, {});
+                    options.onSubmit(formValue)
+
+                }
+                //Submit theo trinh duyet mac dinh
+                else {
+                    formElement.submit();
+                }
+            }
+        }
+    }
+    //lặp qua các rule và lắng nghe các sự kiện
+    if (formElement) {
+
         options.rules.forEach(rule => {
             var inputElement = document.querySelector(rule.selector);
-
+            //Save rules for each input field
+            if (Array.isArray(selectorRules[rule.selector])) {
+                selectorRules[rule.selector].push(rule.test)
+            }
+            else {
+                selectorRules[rule.selector] = [rule.test]
+            }
             if (inputElement) {
                 inputElement.onblur = () => {
                     validate(inputElement, rule)
                 }
                 inputElement.oninput = () => {
-                    var errorElement = inputElement.parentElement.querySelector(options.errorSelector);
+                    var errorElement = getParent(inputElement, options.formGroupSelector).querySelector(options.errorSelector);
                     errorElement.innerText = ''
-                    inputElement.parentElement.classList.remove('invalid')
+                    getParent(inputElement, options.formGroupSelector).classList.remove('invalid')
                 }
             }
         });
+        console.log(selectorRules)
     }
 
 }
 //define rules
-Validator.isRequired = (selector) => {
+Validator.isRequired = (selector, message) => {
     return {
         selector: selector,
         test: (value) => {
-            return value.trim() ? undefined : 'Please Enter This Field'
+            return value.trim() ? undefined : message || 'Please Enter This Field'
         }
     }
 }
-Validator.isEmail = (selector) => {
+Validator.isEmail = (selector, message) => {
     return {
         selector: selector,
         test: (value) => {
             var regex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
-            return regex.test(value) ? undefined : 'Please Enter Valid Email';
+            return regex.test(value) ? undefined : message || 'Please Enter Valid Email';
         }
     }
 }
-Validator.minLength = (selector, min) => {
+Validator.minLength = (selector, min, message) => {
     return {
         selector: selector,
         test: (value) => {
 
-            return value.length >= min ? undefined : `Password needs a minimum of ${min} characters`;
+            return value.length >= min ? undefined : message || `Password needs a minimum of ${min} characters`;
         }
     }
 }
@@ -64,19 +120,25 @@ Validator.isConfirmed = (selector, confirmValue, message) => {
     return {
         selector: selector,
         test: (value) => {
-            return value === confirmValue() ? undefined : message;
+            return value === confirmValue() ? undefined : message || 'Input value is incorrect';
         }
     }
 }
 //output
 Validator({
     form: "#form-1",
+    formGroupSelector: '.form-group',
     rules: [Validator.isRequired("#fullname"),
+    Validator.isRequired('#email'),
     Validator.isEmail("#email"),
+    Validator.isRequired('#password'),
     Validator.minLength("#password", 6),
     Validator.isConfirmed('#password_confirmation', function () {
         return document.querySelector('#form-1 #password').value
     }, 'Re - entered password is incorrect')],
+    onSubmit: function (data) {
+        console.log(data)
+    },
     errorSelector: '.form-message'
 });
 
