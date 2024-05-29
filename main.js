@@ -16,7 +16,13 @@ function Validator(options) {
         var rules = selectorRules[rule.selector]
         //lặp qua các rule
         for (var i = 0; i < rules.length; i++) {
-            errorMessage = rules[i](inputElement.value)
+            switch (inputElement.type) {
+                case 'radio':
+                case 'checkbox':
+                    errorMessage = rules[i](formElement.querySelector(rule.selector + ':checked'))
+                    break;
+                default: errorMessage = rules[i](inputElement.value)
+            }
             if (errorMessage) break;
         }
         if (errorMessage) {
@@ -46,10 +52,40 @@ function Validator(options) {
             if (isFormValid) {
                 if (typeof options.onSubmit === 'function') {
                     var enableInput = formElement.querySelectorAll('[name]:not([disabled])')
-                    console.log(enableInput)
                     console.log(Array.from(enableInput))
                     var formValue = Array.from(enableInput).reduce(function (values, input) {
-                        values[input.name] = input.value
+                        switch (input.type) {
+                            case 'radio':
+                                if (!([input.name] in values)) {
+                                    if (!input.matches(':checked')) {
+                                        values[input.name] = "";
+                                    }
+                                    else {
+                                        values[input.name] = input.value;
+                                    }
+                                }
+                                else {
+                                    if (input.matches(':checked')) {
+                                        values[input.name] = input.value;
+                                    }
+
+                                }
+                                break;
+                            case 'checkbox':
+                                if (!input.matches(':checked')) {
+                                    values[input.name] = '';
+                                    return values
+                                }
+                                if (!Array.isArray(values[input.name])) {
+                                    values[input.name] = []
+                                }
+                                values[input.name].push(input.value)
+                                break;
+                            case 'file':
+                                values[input.name] = input.files;
+                                break;
+                            default: values[input.name] = input.value;
+                        }
                         return values
                     }, {});
                     options.onSubmit(formValue)
@@ -66,7 +102,7 @@ function Validator(options) {
     if (formElement) {
 
         options.rules.forEach(rule => {
-            var inputElement = document.querySelector(rule.selector);
+
             //Save rules for each input field
             if (Array.isArray(selectorRules[rule.selector])) {
                 selectorRules[rule.selector].push(rule.test)
@@ -74,7 +110,8 @@ function Validator(options) {
             else {
                 selectorRules[rule.selector] = [rule.test]
             }
-            if (inputElement) {
+            var inputElements = document.querySelectorAll(rule.selector);
+            Array.from(inputElements).forEach((inputElement) => {
                 inputElement.onblur = () => {
                     validate(inputElement, rule)
                 }
@@ -83,7 +120,7 @@ function Validator(options) {
                     errorElement.innerText = ''
                     getParent(inputElement, options.formGroupSelector).classList.remove('invalid')
                 }
-            }
+            })
         });
         console.log(selectorRules)
     }
@@ -94,7 +131,7 @@ Validator.isRequired = (selector, message) => {
     return {
         selector: selector,
         test: (value) => {
-            return value.trim() ? undefined : message || 'Please Enter This Field'
+            return value ? undefined : message || 'Please Enter This Field'
         }
     }
 }
@@ -133,6 +170,9 @@ Validator({
     Validator.isEmail("#email"),
     Validator.isRequired('#password'),
     Validator.minLength("#password", 6),
+    Validator.isRequired('input[name="gender"]'),
+    Validator.isRequired('#province'),
+    Validator.isRequired('#avatar'),
     Validator.isConfirmed('#password_confirmation', function () {
         return document.querySelector('#form-1 #password').value
     }, 'Re - entered password is incorrect')],
